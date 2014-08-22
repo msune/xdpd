@@ -10,6 +10,7 @@ AC_ARG_WITH(hw-support, AS_HELP_STRING([--with-hw-support="driver-name"],[Compil
 				[gnu-linux-dpdk: compile GNU/Linux Intel DPDK support]
 				[bcm: compile Broadcom hardware support]
 				[octeon: compile OCTEON hardware support]
+				[ofdpa: compile OF-DPA Broadcom hardware support]
 				[netfpga10g: compile NetFPGA 10G hardware code (HW code not included)]
 				[example: compile the example forwarding module code]
 ,
@@ -65,6 +66,13 @@ if( test "$HW" = "octeon");then
 	AC_DEFINE(HW_OCTEON)
 	PLATFORM=octeon
 	AC_CONFIG_SUBDIRS([src/xdpd/drivers/octeon])
+fi
+if( test "$HW" = "ofdpa");then
+	msg="$msg OF-DPA"
+	AC_DEFINE(HW_OFDPA)
+	PLATFORM=ofdpa
+	AC_CONFIG_SUBDIRS([src/xdpd/drivers/ofdpa])
+	DRIVER_HAS_INLINE_SUPPORT="no"
 fi
 if( test "$HW" = "netfpga10g");then
 	msg="$msg NetFPGA-10G"
