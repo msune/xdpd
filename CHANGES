@@ -1,6 +1,6 @@
 Legend:
 
-[+] New/improved feature 
+[+] New/improved feature
 [B] Bug fixed
 [K] Known issue
 [O] Other
@@ -8,9 +8,29 @@ Legend:
 Change log
 ==========
 
+v0.7.2
+
+[O] Added troubleshooting section to README
+[B] Fixed gcc.m4; prevent compilation with buggy g++-4.8
+[B] Fixed known issue #62 "ROFL-datapath and ROFL-common git information..."
+
+[O][gnu-linux-dpdk] Improved README
+
+v0.7.1
+
+[B][gnu-linux-dpdk] Fixing missing call to rte_kni_init() (introduced in 0aa54f09)
+
 v0.7.0
 
-[+][CMM] Improved REST plugin. Please read the REST_README. Added python xcli script
+[+] New build system. Now ROFL dependencies and, if necessary, DPDK, are compiled on board
+[K] ROFL-datapath and ROFL-common git information (BUILD, DECRIBE...) is not correctly generated when building on-board
+
+[+][CMM] Improved REST plugin. Added python xcli script
+
+
+v0.6.1
+
+[B][cmm][node_orchestrator] Fixed compilation and added README
 
 v0.6.0
 
