@@ -13,6 +13,9 @@
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
 #include <rofl/datapath/pipeline/common/datapacket.h>
 
+//OFDPA includes
+#include <ofdpa_api.h>
+
 //Driver static info
 #define EXAMPLE_CODE_NAME "ofdpa"
 #define EXAMPLE_VERSION VERSION 

@@ -27,7 +27,10 @@ CFLAGS="-Werror -Wall -Wl,-export-dynamic $CFLAGS"
 CXXFLAGS="-Werror -Wall -Wl,-export-dynamic $CXXFLAGS"
 AC_DEFINE(__STDC_FORMAT_MACROS)
 
-#Debug
+# Driver
+m4_include([../../../../config/driver.m4])
+
+# Debug
 m4_include([../../../../config/debug.m4])
 
 # Check for profiling mode
@@ -35,6 +38,10 @@ m4_include([../../../../config/profiling.m4])
 
 # Ensure rofl-pipeline platform functions are NOT inlined 
 m4_include([../../../../config/no_pipeline_inline.m4])
+
+# Add OFDPA include paths and 
+CPPFLAGS="-I$XDPD_SRCDIR/libs/ofdpa/src/include/ $CPPFLAGS"
+LDFLAGS="-L$XDPD_SRCDIR/libs/ofdpa/bin/ly2-trident-brl20/ $LDFLAGS"
 
 AC_DEFINE(DRIVER_NAME,"ofdpa")
 

@@ -7,3 +7,6 @@
 [submodule "libs/dpdk"]
 	path = libs/dpdk
 	url = https://github.com/bisdn/dpdk-dev.git
+[submodule "libs/ofdpa"]
+	path = libs/ofdpa
+	url = https://github.com/Broadcom-Switch/of-dpa.git
