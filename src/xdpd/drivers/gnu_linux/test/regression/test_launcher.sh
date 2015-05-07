@@ -24,9 +24,10 @@ if [ $DEBUG ];then
 	sudo ./test_storage_packets_expiration
 fi
 
+if [ ! $TRAVIS_CI ];then 
 #MMAP
 sudo ./test_portmmap
 
 #test for the hcl notifications for port events (add, delete & status change)
 sudo ./test_port_status
-
+fi

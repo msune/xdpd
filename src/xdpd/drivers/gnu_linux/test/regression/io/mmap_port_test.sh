@@ -1,5 +1,7 @@
 #!/bin/bash
 
+if [ ! $TRAVIS_CI ];then
+
 # check for veth0
 ip link show veth0 > /dev/null 2>&1
 if [ 0 -ne $? ]; then
@@ -13,3 +15,5 @@ sudo ip link set dev veth1 up
 
 # run test
 sudo ./mmap_port_test
+
+fi
