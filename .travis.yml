@@ -5,7 +5,7 @@ compiler:
 cache: apt
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y -qq libconfig++-dev libboost-all-dev libssl-dev libcunit1-dev libcppunit-dev linux-headers-$(uname -r)
+  - sudo apt-get install -y -qq libconfig++-dev libboost-all-dev libssl-dev libcunit1-dev libcppunit-dev linux-headers-generic
 install:
   - ./autogen.sh
 env:
