@@ -37,7 +37,7 @@ uint16_t ietf_rfc1071_checksum_hbo(uint8_t* buf, size_t buflen)
 	 *         beginning at location "buf".
 	 *  C "reference" implementation defined in IETF RFC 1071
 	 */
-	register uint32_t sum = 0;
+	uint32_t sum = 0;
 
 	//fprintf(stderr, "==> calculating checksum in hbo <==\n");
 
@@ -82,7 +82,7 @@ uint16_t ietf_rfc1071_checksum_nbo(uint8_t* buf, size_t buflen)
 	 *         beginning at location "buf".
 	 *  C "reference" implementation defined in IETF RFC 1071
 	 */
-	register uint32_t sum = 0;
+	uint32_t sum = 0;
 
 	//fprintf(stderr, "==> calculating checksum in nbo <==\n");
 
