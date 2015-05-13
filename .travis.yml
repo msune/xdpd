@@ -19,7 +19,7 @@ script:
   - mkdir -p build
   - cd build
   - ../configure $FLAGS
-  - make -j 5
+  - RTE_KERNELDIR=/lib/modules/3.2.0-83-amd64/build make -j 5
   - TRAVIS_CI=1 make -j 5 check
 notifications:
   email:
