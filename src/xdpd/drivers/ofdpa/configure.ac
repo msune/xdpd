@@ -30,6 +30,9 @@ AC_DEFINE(__STDC_FORMAT_MACROS)
 # Driver
 m4_include([../../../../config/driver.m4])
 
+# ROFL
+m4_include([../../../../config/rofl.m4])
+
 # Debug
 m4_include([../../../../config/debug.m4])
 
@@ -39,9 +42,10 @@ m4_include([../../../../config/profiling.m4])
 # Ensure rofl-pipeline platform functions are NOT inlined 
 m4_include([../../../../config/no_pipeline_inline.m4])
 
-# Add OFDPA include paths and 
+# Add OFDPA to LDFLAGS
 CPPFLAGS="-I$XDPD_SRCDIR/libs/ofdpa/src/include/ $CPPFLAGS"
-LDFLAGS="-L$XDPD_SRCDIR/libs/ofdpa/bin/ly2-trident-brl20/ $LDFLAGS"
+#LDFLAGS="-L$XDPD_SRCDIR/libs/ofdpa/bin/ly2-trident-brl20/ $LDFLAGS"
+LDFLAGS="-L$XDPD_SRCDIR/libs/ofdpa/bin/im-x86-trident-ub12/ $LDFLAGS"
 
 AC_DEFINE(DRIVER_NAME,"ofdpa")
 
