@@ -16,6 +16,7 @@
 #include <ofdpa_api.h>
 
 //Own includes
+#include "../bg_taskmanager.h"
 #include "../config.h"
 #include "../ofdpa/ports.h"
 
@@ -61,10 +62,11 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* _extra
 	//Discover the phyiscal ports of the switch
 	discover_ports();
 
-	//Initialize some form of background task manager
+	//Initialize Background Tasks Manager
+	if(launch_bgmanager() != ROFL_SUCCESS)
+		return HAL_FAILURE;
 
 	//And initialize or setup any other state your platform needs...
-
 	strncpy(extra_params, _extra_params, DRIVER_EXTRA_PARAMS_MAX_LEN);
 
 	//We don't support any HAL extension
