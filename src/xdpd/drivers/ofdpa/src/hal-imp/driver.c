@@ -7,7 +7,6 @@
 #include <rofl/datapath/pipeline/physical_switch.h>
 #include <rofl/datapath/pipeline/openflow/openflow1x/of1x_switch.h>
 
-//only for Test
 #include <stdlib.h>
 #include <string.h>
 #include <rofl/datapath/pipeline/openflow/of_switch.h>
@@ -16,16 +15,24 @@
 //OFDPA includes
 #include <ofdpa_api.h>
 
+//Own includes
+#include "../ofdpa/ports.h"
+
 //Driver static info
 #define EXAMPLE_CODE_NAME "ofdpa"
 #define EXAMPLE_VERSION VERSION
-#define EXAMPLE_DESC  "OFDPA driver. TODO"
+#define EXAMPLE_DESC  "OFDPA driver.\n\nThe OFDPA driver supports Broadcom's OFDPA compliant switches."
 #define EXAMPLE_USAGE  ""
 
 //Here we are going to store the parameters that we got
 //and that we were able to parse (understand) and execute
 char extra_params[DRIVER_EXTRA_PARAMS_MAX_LEN];
 
+//Static pipeline LSI (the only one)
+static of_switch_t* sw=NULL;
+
+//Number of tables needed by OFDPA (max table)
+#define OFDPA_NUM_OF_TABLES OFDPA_FLOW_TABLE_ID_ACL_POLICY
 
 /*
 * @name    hal_driver_init
@@ -41,8 +48,9 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* _extra
 	if(physical_switch_init() != ROFL_SUCCESS)
 		return HAL_FAILURE;
 
-	//Likely here you are going to discover platform ports;
-	//If using ROFL_pipeline you would then add them (physical_switch_add_port()
+
+	//Discover the phyiscal ports of the switch
+	discover_ports();
 
 	//Initialize some form of background task manager
 
@@ -102,7 +110,7 @@ hal_result_t hal_driver_destroy(){
 * Switch management functions
 */
 bool hal_driver_switch_exists(uint64_t dpid){
-	return NULL;
+	return physical_switch_get_logical_switch_by_dpid(dpid) != NULL;
 }
 
 /**
@@ -111,7 +119,7 @@ bool hal_driver_switch_exists(uint64_t dpid){
 * @retval  List of available dpids, which MUST be deleted using dpid_list_destroy().
 */
 dpid_list_t* hal_driver_get_all_lsi_dpids(void){
-	return NULL;
+	return physical_switch_get_all_lsi_dpids();
 }
 
 /**
@@ -121,7 +129,7 @@ dpid_list_t* hal_driver_get_all_lsi_dpids(void){
  * @retval  Pointer to of_switch_snapshot_t instance or NULL
  */
 of_switch_snapshot_t* hal_driver_get_switch_snapshot_by_dpid(uint64_t dpid){
-	return NULL;
+	return physical_switch_get_logical_switch_snapshot(dpid);
 }
 
 
@@ -133,8 +141,32 @@ of_switch_snapshot_t* hal_driver_get_switch_snapshot_by_dpid(uint64_t dpid){
 */
 hal_result_t hal_driver_create_switch(char* name, uint64_t dpid, of_version_t of_version, unsigned int num_of_tables, int* ma_list){
 
-	ROFL_INFO("["DRIVER_NAME"] calling create switch. Name: %s, number of tables: %d\n",name, num_of_tables);
+	//We only accept one logical switch in this driver
+	if(sw){
+		ROFL_ERR("["DRIVER_NAME"] ERROR: OFDPA driver only supports 1 logical switch!\n");
+		return HAL_FAILURE;
+	}
 
+	//With a certain number of tables
+	if(num_of_tables != OFDPA_NUM_OF_TABLES){
+		ROFL_ERR("["DRIVER_NAME"] ERROR: OFDPA driver only supports (exactly) %u table!\n", OFDPA_NUM_OF_TABLES);
+		return HAL_FAILURE;
+	}
+
+	//C
+	sw = (of_switch_t*)of1x_init_switch(name, of_version, dpid, num_of_tables, (enum of1x_matching_algorithm_available*) ma_list);
+	if(!sw){
+		ROFL_ERR("["DRIVER_NAME"] ERROR: unable to create pipeline LSI.\n");
+		return HAL_FAILURE;
+	}
+
+	//Adding switch to the bank
+	physical_switch_add_logical_switch(sw);
+
+	ROFL_DEBUG("["DRIVER_NAME"] Creating LSI named: %s, num. of tables: %u, version: 0x%x\n",
+											name,
+											num_of_tables,
+											of_version);
 	return HAL_SUCCESS;
 }
 
@@ -145,7 +177,23 @@ hal_result_t hal_driver_create_switch(char* name, uint64_t dpid, of_version_t of
 */
 hal_result_t hal_driver_destroy_switch_by_dpid(const uint64_t dpid){
 
-	ROFL_INFO("["DRIVER_NAME"] calling destroy_switch_by_dpid()\n");
+	if(!sw)
+		return HAL_FAILURE;
+	if(sw->dpid != dpid)
+		return HAL_FAILURE;
+
+	//FIXME: destroy rules
+
+	//Detach ports from switch. Do not feed more packets to the switch
+	if(physical_switch_detach_all_ports_from_logical_switch(sw)!=ROFL_SUCCESS)
+		return HAL_FAILURE;
+
+	//Remove switch from the switch bank
+	if(physical_switch_remove_logical_switch(sw)!=ROFL_SUCCESS)
+		return HAL_FAILURE;
+
+	//Set pointer sw pointer so that it can be recreated in the future
+	sw=NULL;
 
 	return HAL_SUCCESS;
 }
@@ -159,7 +207,7 @@ hal_result_t hal_driver_destroy_switch_by_dpid(const uint64_t dpid){
 * @ingroup port_management
 */
 bool hal_driver_port_exists(const char *name){
-	return false;
+	return physical_switch_get_port_by_name(name) != NULL;
 }
 
 /**
@@ -169,7 +217,7 @@ bool hal_driver_port_exists(const char *name){
 * @retval  List of available port names, which MUST be deleted using switch_port_name_list_destroy().
 */
 switch_port_name_list_t* hal_driver_get_all_port_names(void){
-	return NULL;
+	return physical_switch_get_all_port_names();
 }
 
 /**
@@ -178,8 +226,9 @@ switch_port_name_list_t* hal_driver_get_all_port_names(void){
  * @ingroup port_management
  */
 switch_port_snapshot_t* hal_driver_get_port_snapshot_by_name(const char *name){
-	return NULL;
+	return physical_switch_get_port_snapshot(name);
 }
+
 /**
  * @name hal_driver_get_port_by_num
  * @brief Retrieves a snapshot of the current state of the port of the Logical Switch Instance with dpid at port_num, if exists. The snapshot MUST be deleted using switch_port_destroy_snapshot()
@@ -214,7 +263,34 @@ switch_port_snapshot_t* hal_driver_get_port_snapshot_by_num(uint64_t dpid, unsig
 */
 hal_result_t hal_driver_attach_port_to_switch(uint64_t dpid, const char* name, unsigned int* of_port_num){
 
-	ROFL_INFO("["DRIVER_NAME"] calling attach_port_to_switch()\n");
+	switch_port_t* port;
+	of_switch_t* lsw;
+
+	//Check switch existance
+	lsw = physical_switch_get_logical_switch_by_dpid(dpid);
+	if(!lsw){
+		return HAL_FAILURE;
+	}
+
+	//Check if the port does exist
+	port = physical_switch_get_port_by_name(name);
+	if(!port)
+		return HAL_FAILURE;
+
+	//Update pipeline state
+	if(*of_port_num == 0){
+		//no port specified, we assign the first available
+		if(physical_switch_attach_port_to_logical_switch(port,lsw,of_port_num) == ROFL_FAILURE){
+			assert(0);
+			return HAL_FAILURE;
+		}
+	}else{
+
+		if(physical_switch_attach_port_to_logical_switch_at_port_num(port,lsw,*of_port_num) == ROFL_FAILURE){
+			assert(0);
+			return HAL_FAILURE;
+		}
+	}
 
 	return HAL_SUCCESS;
 }
@@ -228,10 +304,8 @@ hal_result_t hal_driver_attach_port_to_switch(uint64_t dpid, const char* name, u
 * @param dpid_lsi2 Datapath ID of the LSI2
 */
 hal_result_t hal_driver_connect_switches(uint64_t dpid_lsi1, unsigned int* port_num1, switch_port_snapshot_t** port1, uint64_t dpid_lsi2, unsigned int* port_num2, switch_port_snapshot_t** port2){
-
-	ROFL_INFO("["DRIVER_NAME"] calling connect_switches()\n");
-
-	return HAL_SUCCESS;
+	ROFL_INFO("["DRIVER_NAME"] ERROR: OFDPA doesn't currently support multiple LSIs!\n");
+	return HAL_FAILURE;
 }
 
 /*
@@ -244,9 +318,42 @@ hal_result_t hal_driver_connect_switches(uint64_t dpid_lsi1, unsigned int* port_
 */
 hal_result_t hal_driver_detach_port_from_switch(uint64_t dpid, const char* name){
 
-	ROFL_INFO("["DRIVER_NAME"] calling detach_port_from_switch()\n");
+	of_switch_t* lsw;
+	switch_port_t* port;
+	switch_port_snapshot_t *port_snapshot=NULL;
+
+	lsw = physical_switch_get_logical_switch_by_dpid(dpid);
+	if(!lsw)
+		return HAL_FAILURE;
+
+	port = physical_switch_get_port_by_name(name);
+
+	//Check if the port does exist and is really attached to the dpid
+	if( !port || !port->attached_sw || port->attached_sw->dpid != dpid)
+		return HAL_FAILURE;
+
+	//Snapshoting the port *before* it is detached
+	port_snapshot = physical_switch_get_port_snapshot(port->name);
+
+	if(!port_snapshot){
+		assert(0);
+		return HAL_FAILURE;
+	}
+
+	//Detach it
+	if(physical_switch_detach_port_from_logical_switch(port,lsw) != ROFL_SUCCESS){
+		ROFL_ERR("["DRIVER_NAME"] ERROR: error detaching port %s.\n",port->name);
+		assert(0);
+		goto DRIVER_DETACH_ERROR;
+	}
 
 	return HAL_SUCCESS;
+
+DRIVER_DETACH_ERROR:
+	if(port_snapshot)
+		switch_port_destroy_snapshot(port_snapshot);
+
+	return HAL_FAILURE;
 }
 
 /*
@@ -259,9 +366,17 @@ hal_result_t hal_driver_detach_port_from_switch(uint64_t dpid, const char* name)
 */
 hal_result_t hal_driver_detach_port_from_switch_at_port_num(uint64_t dpid, const unsigned int of_port_num){
 
-	ROFL_INFO("["DRIVER_NAME"] calling detach_port_from_switch_at_port_num()\n");
+	of_switch_t* lsw;
 
-	return HAL_SUCCESS;
+	lsw = physical_switch_get_logical_switch_by_dpid(dpid);
+	if(!lsw)
+		return HAL_FAILURE;
+
+	//Check if the port does exist.
+	if(!of_port_num || of_port_num >= LOGICAL_SWITCH_MAX_LOG_PORTS || !lsw->logical_ports[of_port_num].port)
+		return HAL_FAILURE;
+
+	return hal_driver_detach_port_from_switch(dpid, lsw->logical_ports[of_port_num].port->name);
 }
 
 
@@ -280,7 +395,21 @@ hal_result_t hal_driver_detach_port_from_switch_at_port_num(uint64_t dpid, const
 */
 hal_result_t hal_driver_bring_port_up(const char* name){
 
-	ROFL_INFO("["DRIVER_NAME"] calling bring_port_up()\n");
+	switch_port_t* port;
+	switch_port_snapshot_t* port_snapshot;
+
+	//Check if the port does exist
+	port = physical_switch_get_port_by_name(name);
+
+	if(!port || !port->platform_port_state)
+		return HAL_FAILURE;
+
+	//Bring it up
+	if(bring_port_up(port) != ROFL_SUCCESS)
+		return HAL_FAILURE;
+
+	port_snapshot = physical_switch_get_port_snapshot(port->name);
+	hal_cmm_notify_port_status_changed(port_snapshot);
 
 	return HAL_SUCCESS;
 }
@@ -294,7 +423,20 @@ hal_result_t hal_driver_bring_port_up(const char* name){
 */
 hal_result_t hal_driver_bring_port_down(const char* name){
 
-	ROFL_INFO("["DRIVER_NAME"] calling bring_port_down()\n");
+	switch_port_t* port;
+	switch_port_snapshot_t* port_snapshot;
+
+	//Check if the port does exist
+	port = physical_switch_get_port_by_name(name);
+	if(!port || !port->platform_port_state)
+		return HAL_FAILURE;
+
+	//Bring it down
+	if(bring_port_down(port) != ROFL_SUCCESS)
+		return HAL_FAILURE;
+
+	port_snapshot = physical_switch_get_port_snapshot(port->name);
+	hal_cmm_notify_port_status_changed(port_snapshot);
 
 	return HAL_SUCCESS;
 }
@@ -310,9 +452,17 @@ hal_result_t hal_driver_bring_port_down(const char* name){
 */
 hal_result_t hal_driver_bring_port_up_by_num(uint64_t dpid, unsigned int port_num){
 
-	ROFL_INFO("["DRIVER_NAME"] calling bring_port_up_by_num()\n");
+	of_switch_t* lsw;
 
-	return HAL_SUCCESS;
+	lsw = physical_switch_get_logical_switch_by_dpid(dpid);
+	if(!lsw)
+		return HAL_FAILURE;
+
+	//Check if the port does exist and is really attached to the dpid
+	if( !lsw->logical_ports[port_num].port || lsw->logical_ports[port_num].attachment_state != LOGICAL_PORT_STATE_ATTACHED || lsw->logical_ports[port_num].port->attached_sw->dpid != dpid)
+		return HAL_FAILURE;
+
+	return hal_driver_bring_port_up(lsw->logical_ports[port_num].port->name);
 }
 
 /*
@@ -325,9 +475,17 @@ hal_result_t hal_driver_bring_port_up_by_num(uint64_t dpid, unsigned int port_nu
 */
 hal_result_t hal_driver_bring_port_down_by_num(uint64_t dpid, unsigned int port_num){
 
-	ROFL_INFO("["DRIVER_NAME"] calling bring_port_down_by_num()\n");
+	of_switch_t* lsw;
 
-	return HAL_SUCCESS;
+	lsw = physical_switch_get_logical_switch_by_dpid(dpid);
+	if(!lsw)
+		return HAL_FAILURE;
+
+	//Check if the port does exist and is really attached to the dpid
+	if( !lsw->logical_ports[port_num].port || lsw->logical_ports[port_num].attachment_state != LOGICAL_PORT_STATE_ATTACHED || lsw->logical_ports[port_num].port->attached_sw->dpid != dpid)
+		return HAL_FAILURE;
+
+	return hal_driver_bring_port_down(lsw->logical_ports[port_num].port->name);
 }
 
 /**

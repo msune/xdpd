@@ -54,6 +54,7 @@ AC_CONFIG_FILES([
 	src/Makefile
 	src/hal-imp/Makefile
 	src/hal-imp/openflow/openflow1x/Makefile
+	src/ofdpa/Makefile
 	src/pipeline-imp/Makefile
 ])
 
