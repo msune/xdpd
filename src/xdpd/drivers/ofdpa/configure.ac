@@ -47,8 +47,6 @@ CPPFLAGS="-I$XDPD_SRCDIR/libs/ofdpa/src/include/ $CPPFLAGS"
 #LDFLAGS="-L$XDPD_SRCDIR/libs/ofdpa/bin/ly2-trident-brl20/ $LDFLAGS"
 LDFLAGS="-L$XDPD_SRCDIR/libs/ofdpa/bin/im-x86-trident-ub12/ $LDFLAGS"
 
-AC_DEFINE(DRIVER_NAME,"ofdpa")
-
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile

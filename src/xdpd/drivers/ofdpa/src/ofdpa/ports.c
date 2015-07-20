@@ -8,6 +8,9 @@
 //OFDPA includes
 #include <ofdpa_api.h>
 
+//Own includes
+#include "../config.h"
+
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
@@ -28,7 +31,7 @@ static void port_update_state(switch_port_t* port,  ofdpa_port_state_t* ps){
 	//First set administrative state
 	err = ofdpaPortConfigGet(ps->id, &admin_state);
 	if(err != OFDPA_E_NONE){
-		ROFL_WARN("["DRIVER_NAME"] WARNING: unable to recover admin state for port '%s' via ofdpaPortConfigGet() call. Skipping admin port update...\n", port->name);
+		ROFL_WARN(DRIVER_NAME "[ports] WARNING: unable to recover admin state for port '%s' via ofdpaPortConfigGet() call. Skipping admin port update...\n", port->name);
 	}else{
 		port->up = !(admin_state == OFDPA_PORT_CONFIG_DOWN);
 	}
@@ -36,7 +39,7 @@ static void port_update_state(switch_port_t* port,  ofdpa_port_state_t* ps){
 	//Retrieve the features
 	err = ofdpaPortFeatureGet(ps->id, &features);
 	if(err != OFDPA_E_NONE){
-		ROFL_WARN("["DRIVER_NAME"] WARNING: unable to recover features for port '%s' via ofdpaPortFeatureGet() call. Skipping features port update...\n", port->name);
+		ROFL_WARN(DRIVER_NAME "[ports] WARNING: unable to recover features for port '%s' via ofdpaPortFeatureGet() call. Skipping features port update...\n", port->name);
 	}else{
 		//TODO: FIXME
 	}
@@ -52,7 +55,7 @@ static rofl_result_t port_set_queues(switch_port_t* port, ofdpa_port_state_t* ps
 
 	err = ofdpaNumQueuesGet(ps->id, &n_queues);
 	if(err != OFDPA_E_NONE){
-		ROFL_ERR("["DRIVER_NAME"] ERROR: unable to retrieve the number of HW queues for port '%s'\n",
+		ROFL_ERR(DRIVER_NAME "[ports] ERROR: unable to retrieve the number of HW queues for port '%s'\n",
 												port->name);
 		assert(0);
 		return ROFL_FAILURE;
@@ -63,7 +66,7 @@ static rofl_result_t port_set_queues(switch_port_t* port, ofdpa_port_state_t* ps
 		//Get queue stats
 		err = ofdpaQueueStatsGet(ps->id, i, &stats);
 		if(err != OFDPA_E_NONE){
-			ROFL_ERR("["DRIVER_NAME"] ERROR: unable to retrieve information for HW queue '%u' in port '%s'\n",
+			ROFL_ERR(DRIVER_NAME "[ports] ERROR: unable to retrieve information for HW queue '%u' in port '%s'\n",
 												i,
 												port->name);
 			assert(0);
@@ -73,7 +76,7 @@ static rofl_result_t port_set_queues(switch_port_t* port, ofdpa_port_state_t* ps
 		//Add to the pipeline
 		snprintf(queue_name, PORT_QUEUE_MAX_LEN_NAME, "%s%d", "queue", i);
 		if(switch_port_add_queue(port, i, (char*)&queue_name, 0, 0, 0) != ROFL_SUCCESS){
-			ROFL_ERR("["DRIVER_NAME"] ERROR: unable to set queue '%u' information for port '%s'\n",
+			ROFL_ERR(DRIVER_NAME "[ports] ERROR: unable to set queue '%u' information for port '%s'\n",
 												i,
 												port->name);
 			assert(0);
@@ -99,7 +102,7 @@ static switch_port_t* create_port(uint32_t id){
 	//Allocate space
 	if(ofdpaPortNameGet(id, &buf) != OFDPA_E_NONE){
 		assert(0);
-		ROFL_ERR("["DRIVER_NAME"] ERROR: unable to retrieve port name for OFDPA id '%u'\n", id);
+		ROFL_ERR(DRIVER_NAME "[ports] ERROR: unable to retrieve port name for OFDPA id '%u'\n", id);
 		return NULL;
 	}
 
@@ -112,7 +115,7 @@ static switch_port_t* create_port(uint32_t id){
 	ps = (ofdpa_port_state_t*)malloc(sizeof(ofdpa_port_state_t));
 	if(!port->platform_port_state){
 		assert(0);
-		ROFL_ERR("["DRIVER_NAME"] Unable to allocate driver's internal-state memory for port '%s'; out of memory?\n", tmp);
+		ROFL_ERR(DRIVER_NAME "[ports] Unable to allocate driver's internal-state memory for port '%s'; out of memory?\n", tmp);
 		return NULL;
 	}
 	port->platform_port_state = ps;
@@ -136,6 +139,8 @@ rofl_result_t discover_ports(void){
 	uint32_t port = 0, next_port;
 	switch_port_t* sw_port;
 
+	ROFL_DEBUG(DRIVER_NAME "[ports] Starting port discovery...\n");
+
 	err = ofdpaPortNextGet(port, &next_port);
 	while(err == OFDPA_E_NONE){
 
@@ -147,10 +152,9 @@ rofl_result_t discover_ports(void){
 		}
 		ROFL_INFO(DRIVER_NAME"[ports] Discovered interface '%s' mac_addr %02X:%02X:%02X:%02X:%02X:%02X \n",
 												sw_port->name);
-
 		//Add to the pipeline
 		if(physical_switch_add_port(sw_port) != ROFL_SUCCESS ){
-			ROFL_ERR("["DRIVER_NAME"] ERROR: all physical port slots are occupied\n");
+			ROFL_ERR(DRIVER_NAME "[ports] ERROR: all physical port slots are occupied\n");
 			assert(0);
 			return ROFL_FAILURE;
 		}
@@ -184,7 +188,7 @@ rofl_result_t bring_port_up(switch_port_t* port){
 	//Now retrieve the current state
 	error = ofdpaPortConfigGet(ps->id, &admin_state);
 	if(error != OFDPA_E_NONE){
-		ROFL_ERR("["DRIVER_NAME"] Unable to recover admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
+		ROFL_ERR(DRIVER_NAME "[ports] Unable to recover admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
 		res = ROFL_FAILURE;
 		goto UP_END;
 	}
@@ -193,7 +197,7 @@ rofl_result_t bring_port_up(switch_port_t* port){
 		admin_state = !OFDPA_PORT_CONFIG_DOWN;
 		error = ofdpaPortConfigSet(ps->id, admin_state);
 		if(error != OFDPA_E_NONE){
-			ROFL_ERR("["DRIVER_NAME"] Unable to bring up admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
+			ROFL_ERR(DRIVER_NAME "[ports] Unable to bring up admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
 		res = ROFL_FAILURE;
 		}
 	}
@@ -225,7 +229,7 @@ rofl_result_t bring_port_down(switch_port_t* port){
 	//Now retrieve the current state
 	error = ofdpaPortConfigGet(ps->id, &admin_state);
 	if(error != OFDPA_E_NONE){
-		ROFL_ERR("["DRIVER_NAME"] Unable to recover admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
+		ROFL_ERR(DRIVER_NAME "[ports] Unable to recover admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
 		res = ROFL_FAILURE;
 		goto DOWN_END;
 	}
@@ -234,7 +238,7 @@ rofl_result_t bring_port_down(switch_port_t* port){
 		admin_state = OFDPA_PORT_CONFIG_DOWN;
 		error = ofdpaPortConfigSet(ps->id, admin_state);
 		if(error != OFDPA_E_NONE){
-			ROFL_ERR("["DRIVER_NAME"] Unable to bring down admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
+			ROFL_ERR(DRIVER_NAME "[ports] Unable to bring down admin state for port '%s' via ofdpaPortConfigGet() call. OFDPA error: '%s'\n", port->name, (error == OFDPA_E_PARAM)? "invalid parameters" : "Unknown");
 		res = ROFL_FAILURE;
 		}
 	}

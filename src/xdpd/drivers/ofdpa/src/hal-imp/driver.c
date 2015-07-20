@@ -16,6 +16,7 @@
 #include <ofdpa_api.h>
 
 //Own includes
+#include "../config.h"
 #include "../ofdpa/ports.h"
 
 //Driver static info
@@ -41,13 +42,21 @@ static of_switch_t* sw=NULL;
 */
 hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* _extra_params){
 
-
-	ROFL_INFO("["DRIVER_NAME"] calling hal_driver_init()\n");
+	ROFL_INFO(DRIVER_NAME " calling hal_driver_init()\n");
 
 	//If using ROFL-PIPELINE, the physical switch must be inited
 	if(physical_switch_init() != ROFL_SUCCESS)
 		return HAL_FAILURE;
 
+
+	ROFL_INFO(DRIVER_NAME " Initializing OFDPA driver...\n");
+
+	//Call OFDPA init routine
+	OFDPA_ERROR_t res = ofdpaClientInitialize("test");
+	if(res != OFDPA_E_NONE){
+		ROFL_ERR(DRIVER_NAME " Unable to initialize the OFDPA. Error: %d\n", res);
+		return HAL_FAILURE;
+	}
 
 	//Discover the phyiscal ports of the switch
 	discover_ports();
@@ -55,15 +64,6 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* _extra
 	//Initialize some form of background task manager
 
 	//And initialize or setup any other state your platform needs...
-
-	ROFL_INFO("["DRIVER_NAME"] Initializing OFDPA driver...\n");
-
-	//Call OFDPA init routine
-	OFDPA_ERROR_t res = ofdpaClientInitialize("test");
-	if(res != OFDPA_E_NONE){
-		ROFL_ERR("["DRIVER_NAME"] Unable to initialize the OFDPA. Error: %d\n", res);
-		return HAL_FAILURE;
-	}
 
 	strncpy(extra_params, _extra_params, DRIVER_EXTRA_PARAMS_MAX_LEN);
 
@@ -101,7 +101,7 @@ hal_result_t hal_driver_destroy(){
 	//If using the pipeline you should call
 	//physical_switch_destroy();
 
-	ROFL_INFO("["DRIVER_NAME"] calling hal_driver_destroy()\n");
+	ROFL_INFO(DRIVER_NAME " calling hal_driver_destroy()\n");
 
 	return HAL_SUCCESS;
 }
@@ -143,27 +143,27 @@ hal_result_t hal_driver_create_switch(char* name, uint64_t dpid, of_version_t of
 
 	//We only accept one logical switch in this driver
 	if(sw){
-		ROFL_ERR("["DRIVER_NAME"] ERROR: OFDPA driver only supports 1 logical switch!\n");
+		ROFL_ERR(DRIVER_NAME " ERROR: OFDPA driver only supports 1 logical switch!\n");
 		return HAL_FAILURE;
 	}
 
 	//With a certain number of tables
 	if(num_of_tables != OFDPA_NUM_OF_TABLES){
-		ROFL_ERR("["DRIVER_NAME"] ERROR: OFDPA driver only supports (exactly) %u table!\n", OFDPA_NUM_OF_TABLES);
+		ROFL_ERR(DRIVER_NAME " ERROR: OFDPA driver only supports (exactly) %u table!\n", OFDPA_NUM_OF_TABLES);
 		return HAL_FAILURE;
 	}
 
 	//C
 	sw = (of_switch_t*)of1x_init_switch(name, of_version, dpid, num_of_tables, (enum of1x_matching_algorithm_available*) ma_list);
 	if(!sw){
-		ROFL_ERR("["DRIVER_NAME"] ERROR: unable to create pipeline LSI.\n");
+		ROFL_ERR(DRIVER_NAME " ERROR: unable to create pipeline LSI.\n");
 		return HAL_FAILURE;
 	}
 
 	//Adding switch to the bank
 	physical_switch_add_logical_switch(sw);
 
-	ROFL_DEBUG("["DRIVER_NAME"] Creating LSI named: %s, num. of tables: %u, version: 0x%x\n",
+	ROFL_DEBUG(DRIVER_NAME " Creating LSI named: %s, num. of tables: %u, version: 0x%x\n",
 											name,
 											num_of_tables,
 											of_version);
@@ -304,7 +304,7 @@ hal_result_t hal_driver_attach_port_to_switch(uint64_t dpid, const char* name, u
 * @param dpid_lsi2 Datapath ID of the LSI2
 */
 hal_result_t hal_driver_connect_switches(uint64_t dpid_lsi1, unsigned int* port_num1, switch_port_snapshot_t** port1, uint64_t dpid_lsi2, unsigned int* port_num2, switch_port_snapshot_t** port2){
-	ROFL_INFO("["DRIVER_NAME"] ERROR: OFDPA doesn't currently support multiple LSIs!\n");
+	ROFL_INFO(DRIVER_NAME " ERROR: OFDPA doesn't currently support multiple LSIs!\n");
 	return HAL_FAILURE;
 }
 
@@ -342,7 +342,7 @@ hal_result_t hal_driver_detach_port_from_switch(uint64_t dpid, const char* name)
 
 	//Detach it
 	if(physical_switch_detach_port_from_logical_switch(port,lsw) != ROFL_SUCCESS){
-		ROFL_ERR("["DRIVER_NAME"] ERROR: error detaching port %s.\n",port->name);
+		ROFL_ERR(DRIVER_NAME " ERROR: error detaching port %s.\n",port->name);
 		assert(0);
 		goto DRIVER_DETACH_ERROR;
 	}
