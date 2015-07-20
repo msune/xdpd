@@ -33,9 +33,6 @@ char extra_params[DRIVER_EXTRA_PARAMS_MAX_LEN];
 //Static pipeline LSI (the only one)
 static of_switch_t* sw=NULL;
 
-//Number of tables needed by OFDPA (max table)
-#define OFDPA_NUM_OF_TABLES OFDPA_FLOW_TABLE_ID_ACL_POLICY
-
 /*
 * @name    hal_driver_init
 * @brief   Initializes driver. Before using the HAL_DRIVER routines, higher layers must allow driver to initialize itself
