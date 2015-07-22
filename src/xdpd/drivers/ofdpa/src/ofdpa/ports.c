@@ -133,7 +133,7 @@ static switch_port_t* create_port(uint32_t id){
 	return port;
 }
 
-rofl_result_t discover_ports(void){
+rofl_result_t ofdpa_discover_ports(void){
 
 	OFDPA_ERROR_t err;
 	uint32_t port = 0, next_port;
@@ -167,7 +167,7 @@ rofl_result_t discover_ports(void){
 	return ROFL_SUCCESS;
 }
 
-rofl_result_t bring_port_up(switch_port_t* port){
+rofl_result_t ofdpa_bring_port_up(switch_port_t* port){
 
 	rofl_result_t res = ROFL_SUCCESS;
 	OFDPA_PORT_CONFIG_t admin_state;
@@ -208,7 +208,7 @@ UP_END:
 	return res;
 }
 
-rofl_result_t bring_port_down(switch_port_t* port){
+rofl_result_t ofdpa_bring_port_down(switch_port_t* port){
 
 	rofl_result_t res = ROFL_SUCCESS;
 	OFDPA_PORT_CONFIG_t admin_state;

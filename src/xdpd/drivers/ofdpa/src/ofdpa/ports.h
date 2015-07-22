@@ -15,19 +15,27 @@
 * @brief OFDPA port management routines
 *
 */
+
+
+//C++ extern C
+ROFL_BEGIN_DECLS
+
 /**
 * Discover physical ports in the Broadcom switch
 */
-rofl_result_t discover_ports(void);
+rofl_result_t ofdpa_discover_ports(void);
 
 /**
 * Bring Broadcom switch port up
 */
-rofl_result_t bring_port_up(switch_port_t* port);
+rofl_result_t ofdpa_bring_port_up(switch_port_t* port);
 
 /**
 * Bring Broadcom switch port down
 */
-rofl_result_t bring_port_down(switch_port_t* port);
+rofl_result_t ofdpa_bring_port_down(switch_port_t* port);
+
+//C++ extern C
+ROFL_END_DECLS
 
 #endif /* OFDPA_PORTS */

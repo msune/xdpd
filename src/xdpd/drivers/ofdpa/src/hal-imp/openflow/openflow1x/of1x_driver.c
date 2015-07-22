@@ -8,6 +8,7 @@
 
 //Own includes
 #include "../../../config.h"
+#include "../../../ofdpa/tables.h"
 
 //Port config
 
@@ -21,10 +22,8 @@
  * @param drop_received		Drop packets received
  */
 hal_result_t hal_driver_of1x_set_port_drop_received_config(uint64_t dpid, unsigned int port_num, bool drop_received){
-	
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-
-	return HAL_SUCCESS;
+	//TODO
+	return HAL_FAILURE;
 }
 
 /**
@@ -37,10 +36,8 @@ hal_result_t hal_driver_of1x_set_port_drop_received_config(uint64_t dpid, unsign
  * @param no_flood		No flood allowed in port
  */
 hal_result_t hal_driver_of1x_set_port_no_flood_config(uint64_t dpid, unsigned int port_num, bool no_flood){
-	
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-
-	return HAL_SUCCESS;
+	//TODO
+	return HAL_FAILURE;
 }
 
 /**
@@ -53,10 +50,8 @@ hal_result_t hal_driver_of1x_set_port_no_flood_config(uint64_t dpid, unsigned in
  * @param forward		Forward packets
  */
 hal_result_t hal_driver_of1x_set_port_forward_config(uint64_t dpid, unsigned int port_num, bool forward){
-	
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-	
-	return HAL_SUCCESS;
+	//TODO
+	return HAL_FAILURE;
 }
 /**
  * @name    hal_driver_of1x_set_port_generate_packet_in_config
@@ -68,9 +63,14 @@ hal_result_t hal_driver_of1x_set_port_forward_config(uint64_t dpid, unsigned int
  * @param generate_packet_in	Generate packet in events for this port 
  */
 hal_result_t hal_driver_of1x_set_port_generate_packet_in_config(uint64_t dpid, unsigned int port_num, bool generate_packet_in){
-	
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-	
+
+	switch_port_t* port = physical_switch_get_port_by_num(dpid,port_num);
+
+	if(!port)
+		return HAL_FAILURE;
+
+	port->of_generate_packet_in = generate_packet_in;
+
 	return HAL_SUCCESS;
 }
 
@@ -84,10 +84,8 @@ hal_result_t hal_driver_of1x_set_port_generate_packet_in_config(uint64_t dpid, u
  * @param advertise		Bitmap advertised
  */
 hal_result_t hal_driver_of1x_set_port_advertise_config(uint64_t dpid, unsigned int port_num, uint32_t advertise){
-
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-	
-	return HAL_SUCCESS;
+	//TODO
+	return HAL_FAILURE;
 }
 
 /**
@@ -100,10 +98,8 @@ hal_result_t hal_driver_of1x_set_port_advertise_config(uint64_t dpid, unsigned i
  * @param miss_send_len	OF MISS_SEND_LEN
  */
 hal_result_t hal_driver_of1x_set_pipeline_config(uint64_t dpid, unsigned int flags, uint16_t miss_send_len){
-	
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-
-	return HAL_SUCCESS;
+	//TODO
+	return HAL_FAILURE;
 }
 
 /**
@@ -116,10 +112,8 @@ hal_result_t hal_driver_of1x_set_pipeline_config(uint64_t dpid, unsigned int fla
  * @param miss_send_len Table miss config	
  */
 hal_result_t hal_driver_of1x_set_table_config(uint64_t dpid, unsigned int table_id, of1x_flow_table_miss_config_t config){
-	
-	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-
-	return HAL_SUCCESS;
+	//TODO
+	return HAL_FAILURE;
 }
 
 /**
@@ -158,6 +152,10 @@ hal_result_t hal_driver_of1x_process_packet_out(uint64_t dpid, uint32_t buffer_i
 
 hal_result_t hal_driver_of1x_process_flow_mod_add(uint64_t dpid, uint8_t table_id, of1x_flow_entry_t** flow_entry, uint32_t buffer_id, bool check_overlap, bool reset_counts){
 
+	//Check table id
+	if(!ofdpa_is_valid_table_id(table_id))
+		return HAL_FAILURE;
+
 	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
 	
 	return HAL_SUCCESS;
@@ -176,6 +174,10 @@ hal_result_t hal_driver_of1x_process_flow_mod_add(uint64_t dpid, uint8_t table_i
  * @param check_counts	Check RESET_COUNTS flag
  */
 hal_result_t hal_driver_of1x_process_flow_mod_modify(uint64_t dpid, uint8_t table_id, of1x_flow_entry_t** flow_entry, uint32_t buffer_id, of1x_flow_removal_strictness_t strictness, bool reset_counts){
+
+	//Check table id
+	if(!ofdpa_is_valid_table_id(table_id))
+		return HAL_FAILURE;
 
 	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
 
@@ -196,6 +198,10 @@ hal_result_t hal_driver_of1x_process_flow_mod_modify(uint64_t dpid, uint8_t tabl
  * @param strictness 	Strictness (STRICT NON-STRICT)
  */
 hal_result_t hal_driver_of1x_process_flow_mod_delete(uint64_t dpid, uint8_t table_id, of1x_flow_entry_t* flow_entry, uint32_t out_port, uint32_t out_group, of1x_flow_removal_strictness_t strictness){
+
+	//Check table id
+	if(!ofdpa_is_valid_table_id(table_id))
+		return HAL_FAILURE;
 
 	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
 	
@@ -222,7 +228,7 @@ hal_result_t hal_driver_of1x_process_flow_mod_delete(uint64_t dpid, uint8_t tabl
 of1x_stats_flow_msg_t* hal_driver_of1x_get_flow_stats(uint64_t dpid, uint8_t table_id, uint32_t cookie, uint32_t cookie_mask, uint32_t out_port, uint32_t out_group, of1x_match_group_t* matches){
 
 	ROFL_INFO(DRIVER_NAME " calling %s()\n",__FUNCTION__);
-	
+
 	return NULL; 
 }
 

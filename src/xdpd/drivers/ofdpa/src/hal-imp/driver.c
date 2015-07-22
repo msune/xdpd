@@ -57,7 +57,8 @@ hal_result_t hal_driver_init(hal_extension_ops_t* extensions, const char* _extra
 	}
 
 	//Discover the phyiscal ports of the switch
-	discover_ports();
+	if(ofdpa_discover_ports() != ROFL_SUCCESS)
+		return HAL_FAILURE;
 
 	//Initialize Background Tasks Manager
 	if(launch_bgmanager() != ROFL_SUCCESS)
@@ -404,7 +405,7 @@ hal_result_t hal_driver_bring_port_up(const char* name){
 		return HAL_FAILURE;
 
 	//Bring it up
-	if(bring_port_up(port) != ROFL_SUCCESS)
+	if(ofdpa_bring_port_up(port) != ROFL_SUCCESS)
 		return HAL_FAILURE;
 
 	port_snapshot = physical_switch_get_port_snapshot(port->name);
@@ -431,7 +432,7 @@ hal_result_t hal_driver_bring_port_down(const char* name){
 		return HAL_FAILURE;
 
 	//Bring it down
-	if(bring_port_down(port) != ROFL_SUCCESS)
+	if(ofdpa_bring_port_down(port) != ROFL_SUCCESS)
 		return HAL_FAILURE;
 
 	port_snapshot = physical_switch_get_port_snapshot(port->name);
