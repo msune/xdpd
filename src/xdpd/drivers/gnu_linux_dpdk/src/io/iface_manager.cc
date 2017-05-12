@@ -21,6 +21,76 @@ switch_port_t* phy_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 struct rte_ring* port_tx_lcore_queue[PORT_MANAGER_MAX_PORTS][IO_IFACE_NUM_QUEUES] = {{NULL}};
 
 pthread_rwlock_t iface_manager_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+static int numa_on = 1; /**< NUMA is enabled by default. */
+/* Static global variables used within this file. */
+//static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
+static uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
+
+struct mbuf_table {
+	uint16_t len;
+	struct rte_mbuf *m_table[IO_IFACE_MAX_PKT_BURST];
+};
+
+struct lcore_rx_queue {
+	uint8_t port_id;
+	uint8_t queue_id;
+} __rte_cache_aligned;
+
+struct lcore_conf {
+	uint16_t n_rx_queue;
+	struct lcore_rx_queue rx_queue_list[MAX_RX_QUEUE_PER_LCORE];
+	uint16_t n_tx_port;
+	uint16_t tx_port_id[RTE_MAX_ETHPORTS];
+	uint16_t tx_queue_id[RTE_MAX_ETHPORTS];
+	struct mbuf_table tx_mbufs[RTE_MAX_ETHPORTS];
+//	void *ipv4_lookup_struct;
+//	void *ipv6_lookup_struct;
+} __rte_cache_aligned;
+
+
+struct lcore_conf lcore_conf[RTE_MAX_LCORE];
+
+struct lcore_params {
+	uint8_t port_id;
+	uint8_t queue_id;
+	uint8_t lcore_id;
+} __rte_cache_aligned;
+
+//static struct lcore_params lcore_params_array[MAX_LCORE_PARAMS];
+static struct lcore_params lcore_params_array_default[] = {
+	{0, 0, 2},
+	{0, 1, 2},
+	{0, 2, 2},
+	{1, 0, 2},
+	{1, 1, 2},
+	{1, 2, 2},
+	{2, 0, 2},
+	{3, 0, 3},
+	{3, 1, 3},
+};
+
+static struct lcore_params * lcore_params = lcore_params_array_default;
+static uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
+				sizeof(lcore_params_array_default[0]);
+
+static uint8_t
+get_port_n_rx_queues(const uint8_t port)
+{
+	int queue = -1;
+	uint16_t i;
+
+	for (i = 0; i < nb_lcore_params; ++i) {
+		if (lcore_params[i].port_id == port) {
+			if (lcore_params[i].queue_id == queue+1)
+				queue = lcore_params[i].queue_id;
+			else
+				rte_exit(EXIT_FAILURE, "queue ids of the port %d must be"
+						" in sequence and must start with 0\n",
+						lcore_params[i].port_id);
+		}
+	}
+	return (uint8_t)(++queue);
+}
 
 
 //Initializes the pipeline structure and launches the port 
@@ -29,10 +99,16 @@ static switch_port_t* configure_port(unsigned int port_id){
 	int ret;
 	unsigned int i;
 	switch_port_t* port;
+	struct lcore_conf *qconf;
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_conf port_conf;
+	struct rte_eth_txconf *txconf;
 	char port_name[SWITCH_PORT_MAX_LEN_NAME];
 	char queue_name[PORT_QUEUE_MAX_LEN_NAME];
+	uint16_t queueid;
+	unsigned lcore_id;
+	uint32_t n_tx_queue, nb_lcores;
+	uint8_t nb_rx_queue, socketid;
 	
 	//Get info
 	rte_eth_dev_info_get(port_id, &dev_info);
@@ -43,10 +119,10 @@ static switch_port_t* configure_port(unsigned int port_id){
 	if(strncmp(dev_info.driver_name, "rte_i40e", 8) == 0){
 		/* 40G */
 		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "40ge%u",port_id);
-	}else if(strncmp(dev_info.driver_name, "rte_ixgbe", 9) == 0){
+	} else if(strncmp(dev_info.driver_name, "rte_ixgbe", 9) == 0) {
 		/* 10G */
 		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "10ge%u",port_id);
-	}else{
+	} else {
 		/* 1G */
 		snprintf (port_name, SWITCH_PORT_MAX_LEN_NAME, "ge%u",port_id);
 	}
@@ -67,8 +143,9 @@ static switch_port_t* configure_port(unsigned int port_id){
 	//Set rx and tx queues
 	memset(&port_conf, 0, sizeof(port_conf));
 	port_conf.rxmode.max_rx_pkt_len =  IO_MAX_PACKET_SIZE;
-	//port_conf.rxmode.hw_ip_checksum = 1;
-	//port_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_IPV4 | ETH_RSS_IPV6;
+	port_conf.rxmode.hw_ip_checksum = 1;
+	port_conf.rxmode.hw_strip_crc = 0;
+	port_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_IP;
 	port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 	if ((ret=rte_eth_dev_configure(port_id, 1, IO_IFACE_NUM_QUEUES, &port_conf)) < 0){
 		XDPD_ERR(DRIVER_NAME"[iface_manager][%s] Cannot configure device; %s(%d)\n", port->name, rte_strerror(ret), ret);
@@ -76,9 +153,67 @@ static switch_port_t* configure_port(unsigned int port_id){
 		return NULL;
 	}
 
+
+	nb_lcores = rte_lcore_count();
+	n_tx_queue = nb_lcores;
+	nb_rx_queue = get_port_n_rx_queues(port_id);
+	if (n_tx_queue > MAX_TX_QUEUE_PER_PORT)
+		n_tx_queue = MAX_TX_QUEUE_PER_PORT;
+	printf("Creating queues: nb_rxq=%d nb_txq=%u... ",
+			nb_rx_queue, (unsigned)n_tx_queue );
+	ret = rte_eth_dev_configure(port_id, nb_rx_queue,
+			(uint16_t)n_tx_queue, &port_conf);
+	if (ret < 0)
+		rte_exit(EXIT_FAILURE,
+				"Cannot configure device: err=%d, port=%d\n",
+				ret, port_id);
+			//Recover MAC address
+	rte_eth_macaddr_get(port_id, (struct ether_addr*)&port->hwaddr);
+	//rte_eth_macaddr_get(port_id, &ports_eth_addr[port_id]);
+	//print_ethaddr(" Address:", &ports_eth_addr[port_id]);
+	//printf(", ");
+	//print_ethaddr("Destination:",
+	//	(const struct ether_addr *)&dest_eth_addr[port_id]);
+	//printf(", ");
+
+	/* init one TX queue per couple (lcore,port) */
+	queueid = 0;
+	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
+		if (rte_lcore_is_enabled(lcore_id) == 0)
+			continue;
+
+		if (numa_on)
+			socketid =
+					(uint8_t)rte_lcore_to_socket_id(lcore_id);
+		else
+			socketid = 0;
+
+		printf("txq=%u,%d,%d ", lcore_id, queueid, socketid);
+		fflush(stdout);
+
+		rte_eth_dev_info_get(port_id, &dev_info);
+		txconf = &dev_info.default_txconf;
+		if (port_conf.rxmode.jumbo_frame)
+			txconf->txq_flags = 0;
+		ret = rte_eth_tx_queue_setup(port_id, queueid, nb_txd,
+				socketid, txconf);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE,
+					"rte_eth_tx_queue_setup: err=%d, "
+					"port=%d\n", ret, port_id);
+
+		qconf = &lcore_conf[lcore_id];
+		qconf->tx_queue_id[port_id] = queueid;
+		queueid++;
+
+		qconf->tx_port_id[qconf->n_tx_port] = port_id;
+		qconf->n_tx_port++;
+	}
+
 	//Add TX queues to the pipeline
 	//Filling one-by-one the queues 
-	for(i=0;i<IO_IFACE_NUM_QUEUES;i++){
+
+	/* for(i=0;i<IO_IFACE_NUM_QUEUES;i++){
 		
 		//Create rofl-pipeline queue state
 		snprintf(queue_name, PORT_QUEUE_MAX_LEN_NAME, "%s%d", "queue", i);
@@ -98,10 +233,11 @@ static switch_port_t* configure_port(unsigned int port_id){
 			assert(0);
 			return NULL;
 		}
-	}
 
-	//Recover MAC address
-	rte_eth_macaddr_get(port_id, (struct ether_addr*)&port->hwaddr);
+	}
+	*/
+
+
 		
 	//Fill-in dpdk port state
 	ps->queues_set = false;

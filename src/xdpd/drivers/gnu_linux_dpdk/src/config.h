@@ -42,7 +42,11 @@
 */
 //Number of output queues per interface
 #define IO_IFACE_NUM_QUEUES 1 //8
+#define MAX_RX_QUEUE_PER_LCORE 16
+#define MAX_TX_QUEUE_PER_PORT RTE_MAX_ETHPORTS
+#define MAX_RX_QUEUE_PER_PORT 128
 #define IO_IFACE_MAX_PKT_BURST 32
+#define MAX_LCORE_PARAMS 1024
 #define IO_MAX_PACKET_SIZE 1518
 
 //Bufferpool reservoir(PKT_INs); ideally at least X*max_num_lsis
@@ -82,7 +86,7 @@
 /*
  * Configurable number of RX/TX ring descriptors
  */
-#define RTE_RX_DESC_DEFAULT 512
+#define RTE_RX_DESC_DEFAULT 128
 #define RTE_TX_DESC_DEFAULT 512
 
 /*

@@ -34,6 +34,10 @@
 //Maximum number of ports (preallocation of port_mapping)
 #define PORT_MANAGER_MAX_PORTS PROCESSING_MAX_PORTS 
 
+/* ethernet addresses of ports */
+extern uint64_t dest_eth_addr[RTE_MAX_ETHPORTS];
+extern struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+
 /**
  *  Port mappings (port_id -> struct switch_port)
  */
