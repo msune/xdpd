@@ -33,8 +33,8 @@ unsigned int total_num_of_nf_ports = 0;
 unsigned int running_hash = 0;
 
 
-struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
-struct rte_mempool* indirect_pools[MAX_CPU_SOCKETS];
+struct rte_mempool* direct_pools[NB_SOCKETS];
+struct rte_mempool* indirect_pools[NB_SOCKETS];
 
 /*
 * Initialize data structures for processing to work

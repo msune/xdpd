@@ -161,7 +161,7 @@ void port_manager::bring_up(std::string& name){
 	if(is_blacklisted(name) == true)
 		return;
 
-	//Serialize . This is not strictly necessary, but prevents
+	//Serialize. This is not strictly necessary, but prevents
 	//inconvenient interlacing of notifications in case of concurrency.
 	pthread_mutex_lock(&port_manager::mutex);
 

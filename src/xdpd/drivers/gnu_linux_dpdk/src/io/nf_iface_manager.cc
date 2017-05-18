@@ -20,7 +20,7 @@
 
 //fwd decl
 extern pthread_rwlock_t iface_manager_rwlock;
-extern struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
+extern struct rte_mempool* direct_pools[NB_SOCKETS];
 
 switch_port_t* nf_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 struct rte_ring* port_tx_nf_lcore_queue[PORT_MANAGER_MAX_PORTS] = {NULL};

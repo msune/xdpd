@@ -48,6 +48,8 @@ using namespace xdpd::gnu_linux;
 //Extra params MACROS
 #define DRIVER_EXTRA_COREMASK "coremask"
 #define DRIVER_EXTRA_POOL_SIZE "pool_size"
+#define DRIVER_EXTRA_LCORE_PARAMS "lcore_params"
+
 
 //Some useful macros
 #define STR(a) #a
@@ -124,7 +126,14 @@ static void parse_extra_params(const std::string& params){
 			ss__ >> mbufs;
 			mbuf_pool_size = mbufs;
 			XDPD_DEBUG(DRIVER_NAME" Overriding default #mbufs per pool(%u) with %u\n", DEFAULT_NB_MBUF, mbufs);
-		}else{
+		}else if(r.compare(DRIVER_EXTRA_LCORE_PARAMS)){
+			std::getline(ss_, r, '=');
+			r.erase(std::remove_if( r.begin(), r.end(),
+									::isspace ), r.end() );
+			strncpy(lcore_params, r.c_str(), MAX_COREMASK_LEN);
+		}
+		}
+		else{
 			t.erase(std::remove_if( t.begin(), t.end(),
 						::isspace ), t.end() );
 

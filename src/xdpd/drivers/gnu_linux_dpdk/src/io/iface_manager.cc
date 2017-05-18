@@ -15,7 +15,7 @@
 
 #include <fcntl.h>  
 
-extern struct rte_mempool* direct_pools[MAX_CPU_SOCKETS];
+extern struct rte_mempool* direct_pools[NB_SOCKETS];
 
 switch_port_t* phy_port_mapping[PORT_MANAGER_MAX_PORTS] = {0};
 struct rte_ring* port_tx_lcore_queue[PORT_MANAGER_MAX_PORTS][IO_IFACE_NUM_QUEUES] = {{NULL}};
@@ -25,6 +25,8 @@ static int numa_on = 1; /**< NUMA is enabled by default. */
 /* Static global variables used within this file. */
 //static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TX_DESC_DEFAULT;
+static uint16_t nb_rxd = RTE_RX_DESC_DEFAULT;
+static struct rte_mempool * pktmbuf_pool[NB_SOCKETS];
 
 struct mbuf_table {
 	uint16_t len;
@@ -50,29 +52,6 @@ struct lcore_conf {
 
 struct lcore_conf lcore_conf[RTE_MAX_LCORE];
 
-struct lcore_params {
-	uint8_t port_id;
-	uint8_t queue_id;
-	uint8_t lcore_id;
-} __rte_cache_aligned;
-
-//static struct lcore_params lcore_params_array[MAX_LCORE_PARAMS];
-static struct lcore_params lcore_params_array_default[] = {
-	{0, 0, 2},
-	{0, 1, 2},
-	{0, 2, 2},
-	{1, 0, 2},
-	{1, 1, 2},
-	{1, 2, 2},
-	{2, 0, 2},
-	{3, 0, 3},
-	{3, 1, 3},
-};
-
-static struct lcore_params * lcore_params = lcore_params_array_default;
-static uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
-				sizeof(lcore_params_array_default[0]);
-
 static uint8_t
 get_port_n_rx_queues(const uint8_t port)
 {
@@ -97,18 +76,17 @@ get_port_n_rx_queues(const uint8_t port)
 static switch_port_t* configure_port(unsigned int port_id){
 
 	int ret;
-	unsigned int i;
 	switch_port_t* port;
 	struct lcore_conf *qconf;
 	struct rte_eth_dev_info dev_info;
 	struct rte_eth_conf port_conf;
 	struct rte_eth_txconf *txconf;
 	char port_name[SWITCH_PORT_MAX_LEN_NAME];
-	char queue_name[PORT_QUEUE_MAX_LEN_NAME];
+	//char queue_name[PORT_QUEUE_MAX_LEN_NAME];
 	uint16_t queueid;
 	unsigned lcore_id;
 	uint32_t n_tx_queue, nb_lcores;
-	uint8_t nb_rx_queue, socketid;
+	uint8_t portid, nb_rx_queue, socketid, queue;
 	
 	//Get info
 	rte_eth_dev_info_get(port_id, &dev_info);
@@ -237,6 +215,36 @@ static switch_port_t* configure_port(unsigned int port_id){
 	}
 	*/
 
+	for (lcore_id = 0; lcore_id < RTE_MAX_LCORE; lcore_id++) {
+			if (rte_lcore_is_enabled(lcore_id) == 0)
+				continue;
+			qconf = &lcore_conf[lcore_id];
+			printf("\nInitializing rx queues on lcore %u ... ", lcore_id );
+			fflush(stdout);
+			/* init RX queues */
+			for(queue = 0; queue < qconf->n_rx_queue; ++queue) {
+				portid = qconf->rx_queue_list[queue].port_id;
+				queueid = qconf->rx_queue_list[queue].queue_id;
+
+				if (numa_on)
+					socketid =
+					(uint8_t)rte_lcore_to_socket_id(lcore_id);
+				else
+					socketid = 0;
+
+				printf("rxq=%d,%d,%d ", portid, queueid, socketid);
+				fflush(stdout);
+
+				ret = rte_eth_rx_queue_setup(portid, queueid, nb_rxd,
+						socketid,
+						NULL,
+						pktmbuf_pool[socketid]);
+				if (ret < 0)
+					rte_exit(EXIT_FAILURE,
+					"rte_eth_rx_queue_setup: err=%d, port=%d\n",
+					ret, portid);
+			}
+		}
 
 		
 	//Fill-in dpdk port state
@@ -306,14 +314,14 @@ rofl_result_t iface_manager_set_queues(switch_port_t* port, unsigned int core_id
 			return ROFL_FAILURE;
 		}
 
-#if 0
+//#if 0
 		//bind stats IGB not supporting this???
 		if( (ret = rte_eth_dev_set_tx_queue_stats_mapping(port_id, i, i)) < 0 ){
 			XDPD_ERR(DRIVER_NAME"[iface_manager] Cannot bind TX queue(%u) stats: %s\n", i, rte_strerror(ret));
 			assert(0);
 			return ROFL_FAILURE;
 		}
-#endif
+//#endif
 	}
 	//Start port
 	if((ret=rte_eth_dev_start(port_id)) < 0){
