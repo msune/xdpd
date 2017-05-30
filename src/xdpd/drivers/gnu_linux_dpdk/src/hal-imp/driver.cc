@@ -14,8 +14,6 @@
 #include <rofl/datapath/pipeline/physical_switch.h>
 #include <rofl/datapath/pipeline/openflow/openflow1x/of1x_switch.h>
 
-#include "../config.h"
-
 //DPDK includes
 #include <rte_config.h> 
 #include <rte_common.h> 
@@ -25,6 +23,9 @@
 #include <rte_mempool.h> 
 #include <rte_mbuf.h> 
 #include <rte_ethdev.h> 
+
+#include "../config.h"
+#include "../config_rss.h"
 
 //only for Test
 #include <stdlib.h>
@@ -127,13 +128,13 @@ static void parse_extra_params(const std::string& params){
 			mbuf_pool_size = mbufs;
 			XDPD_DEBUG(DRIVER_NAME" Overriding default #mbufs per pool(%u) with %u\n", DEFAULT_NB_MBUF, mbufs);
 		}else if(r.compare(DRIVER_EXTRA_LCORE_PARAMS)){
+			//TODO: handle LCORE PARAMs
+			#if 0
 			std::getline(ss_, r, '=');
-			r.erase(std::remove_if( r.begin(), r.end(),
-									::isspace ), r.end() );
+			r.erase(std::remove_if( r.begin(), r.end(), ::isspace ), r.end() );
 			strncpy(lcore_params, r.c_str(), MAX_COREMASK_LEN);
-		}
-		}
-		else{
+			#endif
+		}else{
 			t.erase(std::remove_if( t.begin(), t.end(),
 						::isspace ), t.end() );
 

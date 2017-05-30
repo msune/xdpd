@@ -49,28 +49,8 @@
 #define MAX_LCORE_PARAMS 1024
 #define IO_MAX_PACKET_SIZE 1518
 
-struct lcore_params {
-	uint8_t port_id;
-	uint8_t queue_id;
-	uint8_t lcore_id;
-} __rte_cache_aligned;
-
-//static struct lcore_params lcore_params_array[MAX_LCORE_PARAMS];
-static struct lcore_params lcore_params_array_default[] = {
-	{0, 0, 2},
-	{0, 1, 2},
-	{0, 2, 2},
-	{1, 0, 2},
-	{1, 1, 2},
-	{1, 2, 2},
-	{2, 0, 2},
-	{3, 0, 3},
-	{3, 1, 3},
-};
-
-static struct lcore_params * lcore_params = lcore_params_array_default;
-static uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
-				sizeof(lcore_params_array_default[0]);
+#if 0
+#endif
 
 //Bufferpool reservoir(PKT_INs); ideally at least X*max_num_lsis
 #define IO_BUFFERPOOL_RESERVOIR 2048

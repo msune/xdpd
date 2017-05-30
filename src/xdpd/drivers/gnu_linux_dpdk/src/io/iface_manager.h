@@ -7,6 +7,7 @@
 
 #include <rofl_datapath.h>
 #include "../config.h"
+#include "../config_rss.h"
 #include <rte_config.h> 
 #include <rte_common.h> 
 #include <rte_eal.h> 
